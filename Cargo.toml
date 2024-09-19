@@ -1,0 +1,10 @@
+[package]
+name = "gadget-hack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk4 = "0.9"
+gtk4-layer-shell = "0.4.0"
+gtk4-sys = "0.9"
+webkit6 = "0.4"
