@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.5.17", features = ["cargo"], default-features = true }
 gtk4 = "0.9"
 gtk4-layer-shell = "0.4.0"
 gtk4-sys = "0.9"
+roxmltree = "0.20.0"
+tempfile = "3.12.0"
 webkit6 = "0.4"
+zip = "2.2.0"
