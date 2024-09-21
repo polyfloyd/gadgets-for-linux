@@ -18,12 +18,22 @@ fn app_main(
     let mut gadget = gadget::Gadget::from_file(gadget_file)?;
     eprintln!("loaded gadget: {}", &gadget);
 
-    dbg!(&working_dir);
     gadget.unpack_to(working_dir)?;
+
+    let cssp = gtk4::CssProvider::new();
+    cssp.load_from_string(r#"window.background { background: unset; }"#);
+    let display = gtk4::gdk::Display::default().unwrap();
+    gtk4::style_context_add_provider_for_display(
+        &display,
+        &cssp,
+        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
 
     let window = gtk4::ApplicationWindow::builder()
         .application(application)
         .decorated(false)
+        .resizable(false)
+        .can_focus(false)
         .build();
     window.init_layer_shell();
     window.set_layer(Layer::Bottom);
@@ -41,6 +51,7 @@ fn app_main(
         .settings(&web_settings)
         .web_context(&web_context)
         .build();
+    web_view.set_background_color(&gtk4::gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
     window.set_child(Some(&web_view));
 
     web_view.load_uri(&format!(
@@ -48,7 +59,7 @@ fn app_main(
         working_dir.to_string_lossy()
     ));
 
-    window.show();
+    window.set_visible(true);
 
     Ok(())
 }
