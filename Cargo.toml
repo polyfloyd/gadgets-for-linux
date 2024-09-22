@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-std = "1.13.0"
 clap = { version = "4.5.17", features = ["cargo"], default-features = true }
 gtk4 = { version = "0.9", features = ["v4_12"], default-features = true }
 gtk4-layer-shell = "0.4.0"

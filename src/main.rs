@@ -4,6 +4,7 @@ use gtk4::prelude::*;
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::error::Error;
 use std::path::{self, Path, PathBuf};
+use std::time::Duration;
 use tempfile::tempdir;
 use webkit6::{prelude::*, Settings, WebContext, WebView};
 
@@ -29,19 +30,6 @@ fn app_main(
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    let window = gtk4::ApplicationWindow::builder()
-        .application(application)
-        .decorated(false)
-        .resizable(false)
-        .can_focus(false)
-        .build();
-    window.init_layer_shell();
-    window.set_layer(Layer::Bottom);
-    window.set_anchor(Edge::Right, true);
-    window.set_anchor(Edge::Bottom, true);
-    window.set_margin(Edge::Right, 20);
-    window.set_margin(Edge::Bottom, 20);
-
     let web_context = WebContext::new();
     web_context.add_path_to_sandbox(working_dir, true);
     let web_settings = Settings::new();
@@ -52,14 +40,39 @@ fn app_main(
         .web_context(&web_context)
         .build();
     web_view.set_background_color(&gtk4::gdk::RGBA::new(0.0, 0.0, 0.0, 0.0));
-    window.set_child(Some(&web_view));
 
     web_view.load_uri(&format!(
         "file://{}/index.html",
         working_dir.to_string_lossy()
     ));
 
-    window.set_visible(true);
+    let window = gtk4::ApplicationWindow::builder()
+        .application(application)
+        .decorated(false)
+        .resizable(false)
+        .can_focus(false)
+        .child(&web_view)
+        .build();
+    window.init_layer_shell();
+    window.set_layer(Layer::Bottom);
+    window.set_anchor(Edge::Right, true);
+    window.set_anchor(Edge::Bottom, true);
+    window.set_margin(Edge::Right, 20);
+    window.set_margin(Edge::Bottom, 20);
+
+    window.present();
+
+    let ctx = gtk4::glib::MainContext::default();
+
+    ctx.spawn_local(async move {
+        loop {
+            async_std::task::sleep(Duration::from_millis(1000)).await;
+
+            let (w, h) = web_body_size(&web_view).await;
+            window.set_default_width(w);
+            window.set_default_height(h);
+        }
+    });
 
     Ok(())
 }
@@ -71,7 +84,7 @@ fn main() -> gtk4::glib::ExitCode {
                 .required(true)
                 .value_parser(value_parser!(PathBuf)),
         )
-        .arg(arg!(--debug  "Debug mode"));
+        .arg(arg!(--debug "Debug mode"));
 
     let app_id = concat!("com.github.polyfloyd.", env!("CARGO_PKG_NAME"));
     let application = gtk4::Application::new(
@@ -103,4 +116,22 @@ fn main() -> gtk4::glib::ExitCode {
     });
 
     application.run()
+}
+
+async fn web_body_size(web_view: &WebView) -> (i32, i32) {
+    let js = r#"
+        return new Promise((resolve, reject) => {
+            resolve({w: document.body.offsetWidth, h: document.body.offsetHeight });
+        });
+    "#;
+    let rs = web_view
+        .call_async_javascript_function_future(js, None, None, None)
+        .await;
+
+    let v = rs.unwrap();
+    assert!(v.is_object());
+    let w = v.object_get_property("w").unwrap().to_double();
+    let h = v.object_get_property("h").unwrap().to_double();
+
+    (w as i32, h as i32)
 }
