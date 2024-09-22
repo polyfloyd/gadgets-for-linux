@@ -59,6 +59,12 @@ Object.defineProperty(HTMLImageElement.prototype, 'src', {
 	},
 });
 
+// https://learn.microsoft.com/en-us/previous-versions/windows/desktop/sidebar/addshadow-method-gimage
 HTMLImageElement.prototype.addShadow = function(color, radius, alpha, dx, dy) {
-	console.log('addShadow', {color, radius, alpha, dx, dy});
+	this.style.filter = `drop-shadow(${dx}px ${dy}px ${radius}px ${color})`;
+}
+
+// https://learn.microsoft.com/en-us/previous-versions/windows/desktop/sidebar/addglow-method-gimage
+HTMLImageElement.prototype.addGlow = function(color, radius, alpha) {
+	this.style.filter = `drop-shadow(0 0 ${radius}px ${color})`;
 }
