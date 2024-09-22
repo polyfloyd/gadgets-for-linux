@@ -64,7 +64,7 @@ fn app_main(
     Ok(())
 }
 
-fn main() {
+fn main() -> gtk4::glib::ExitCode {
     let cli = command!()
         .arg(
             arg!(-g --gadget <FILE> "path to a .gadget file")
@@ -102,5 +102,5 @@ fn main() {
         }
     });
 
-    application.run();
+    application.run()
 }
