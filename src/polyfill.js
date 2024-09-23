@@ -8,31 +8,15 @@ _style.innerHTML = `
 `;
 document.getElementsByTagName('head')[0].appendChild(_style);
 
-
-class _Machine {
-	get CPUs() {
-		return [
-			{ usagePercentage: Math.random() * 100 },
-		];
-	}
-
-	get totalMemory() {
-		return 100;
-	}
-
-	get availableMemory() {
-		return Math.random() * 100;
-	}
-	get usagePercentage() {
-		return Math.random() * 100;
-	}
-};
-
 var System = {
 	Gadget: {
 		visible: true,
 	},
-	Machine: new _Machine(),
+	Machine: {
+		CPUs: [{usagePercentage: 0}],
+		totalMemory: 100,
+		availableMemory: 100,
+	},
 };
 
 

@@ -63,14 +63,19 @@ fn app_main(
     window.present();
 
     let ctx = gtk4::glib::MainContext::default();
-
     ctx.spawn_local(async move {
+        let mut sys = sysinfo::System::new_all();
         loop {
             async_std::task::sleep(Duration::from_millis(1000)).await;
+
+            sys.refresh_memory();
+            sys.refresh_cpu_usage();
 
             let (w, h) = web_body_size(&web_view).await;
             window.set_default_width(w);
             window.set_default_height(h);
+
+            webhack::update_machine_stats(&web_view, &sys).await;
         }
     });
 

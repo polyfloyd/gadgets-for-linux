@@ -1,7 +1,9 @@
+use serde_json::json;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
+use webkit6::{prelude::*, WebView};
 
 const POLYFILL_FILE: &str = "_polyfill.js";
 
@@ -52,4 +54,20 @@ pub fn write_polyfill(dir: impl AsRef<Path>) -> io::Result<()> {
 
     let mut f = File::create(dir.join(POLYFILL_FILE))?;
     f.write_all(include_bytes!("polyfill.js"))
+}
+
+pub async fn update_machine_stats(web_view: &WebView, sys: &sysinfo::System) {
+    let machine = json!({
+        "CPUs": sys.cpus().iter()
+            .map(|cpu| json!({"usagePercentage": cpu.cpu_usage()}))
+            .collect::<Vec<_>>(),
+        "totalMemory": sys.total_memory(),
+        "availableMemory": sys.available_memory(),
+    });
+
+    let js = format!("window.System.Machine = {}", machine);
+    web_view
+        .evaluate_javascript_future(&js, None, None)
+        .await
+        .unwrap();
 }
