@@ -4,9 +4,9 @@ use std::error::Error;
 use std::fmt;
 use std::fs::{create_dir_all, File};
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use zip::result::ZipError;
-use zip::ZipArchive;
+use zip::{read::ZipFile, ZipArchive};
 
 #[derive(Debug)]
 pub struct Gadget {
@@ -16,7 +16,7 @@ pub struct Gadget {
     author: Option<String>,
     copyright: Option<String>,
 
-    entrypoint: String,
+    entrypoint: PathBuf,
 }
 
 impl Gadget {
@@ -24,11 +24,8 @@ impl Gadget {
         let mut ar = ZipArchive::new(File::open(filename)?)?;
 
         let manifest_str = {
-            let mut manifest_file = match ar.by_name("en-US/gadget.xml") {
-                Ok(v) => v,
-                Err(ZipError::FileNotFound) => return Err("gadget manifest not found".into()),
-                Err(err) => return Err(err.into()),
-            };
+            let mut manifest_file = try_file_by_name(&mut ar, ["gadget.xml", "en-US/gadget.xml"])
+                .ok_or("gadget manifest not found")?;
             let mut manifest_str = String::with_capacity(manifest_file.size() as usize);
             manifest_file.read_to_string(&mut manifest_str)?;
             manifest_str
@@ -54,7 +51,7 @@ impl Gadget {
             name,
             author,
             copyright,
-            entrypoint,
+            entrypoint: PathBuf::from(entrypoint),
         })
     }
 
@@ -71,12 +68,15 @@ impl Gadget {
                 continue;
             }
 
-            let fname = Path::new(f.name());
-            let is_entrypoint = fname == Path::new("en-US").join(&self.entrypoint);
+            let fname = f
+                .enclosed_name()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "invalid file name"))?;
+            // TODO: check for other lang-pairs?
+            let fname = fname.strip_prefix("en-US/").unwrap_or(&fname);
+
+            let is_entrypoint = fname == &self.entrypoint;
             let oname = path.join(if is_entrypoint {
                 Path::new("index.html")
-            } else if let Ok(o) = fname.strip_prefix("en-US/") {
-                o
             } else {
                 fname
             });
@@ -112,6 +112,17 @@ impl fmt::Display for Gadget {
     }
 }
 
+fn try_file_by_name(
+    ar: &mut ZipArchive<impl io::Read + io::Seek>,
+    paths: impl IntoIterator<Item = impl AsRef<Path>>,
+) -> Option<ZipFile> {
+    let i = paths
+        .into_iter()
+        .filter_map(|p| ar.index_for_path(p))
+        .next()?;
+    ar.by_index(i).ok()
+}
+
 fn query_xml<'a>(
     mut root: xml::Node<'a, 'a>,
     path: impl IntoIterator<Item = &'static str>,
@@ -145,6 +156,6 @@ mod tests {
 
         let gadget = Gadget::from_file(f).unwrap();
         assert_eq!(gadget.name, "CPU Meter");
-        assert_eq!(gadget.entrypoint, "cpu.html");
+        assert_eq!(gadget.entrypoint, Path::new("cpu.html"));
     }
 }

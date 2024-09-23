@@ -8,15 +8,32 @@ _style.innerHTML = `
 `;
 document.getElementsByTagName('head')[0].appendChild(_style);
 
+
+class Settings {
+	constructor() {
+		this.values = {};
+	}
+
+	read(key) {
+		return this._values || null;
+	}
+
+	readString(key) {
+		return this.read(key) || '';
+	}
+
+	write(key, value) {
+		this.values[key] = value;
+	}
+}
+
 var System = {
 	Gadget: {
 		visible: true,
+		path: 'dummy.gadget',
+		Settings: new Settings(),
 	},
-	Machine: {
-		CPUs: [{usagePercentage: 0}],
-		totalMemory: 100,
-		availableMemory: 100,
-	},
+	Machine: null, // Set separately.
 };
 
 
@@ -51,4 +68,23 @@ HTMLImageElement.prototype.addShadow = function(color, radius, alpha, dx, dy) {
 // https://learn.microsoft.com/en-us/previous-versions/windows/desktop/sidebar/addglow-method-gimage
 HTMLImageElement.prototype.addGlow = function(color, radius, alpha) {
 	this.style.filter = `drop-shadow(0 0 ${radius}px ${color})`;
+}
+
+
+class ActiveXObject {
+	constructor() {
+		this.values = {};
+	}
+
+	RegRead(path) {
+		return this._values || 'default';
+	}
+
+	RegWrite(path, value) {
+		this.values[path] = value;
+	}
+
+	FileExists(path) {
+		return false;
+	}
 }

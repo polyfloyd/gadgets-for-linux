@@ -24,6 +24,8 @@ fn decode_ms_string(b: &[u8]) -> Result<String, Box<dyn Error + Send + Sync>> {
 }
 
 pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    let sys = sysinfo::System::new_all();
+
     let html = decode_ms_string(html)?
         .replace(
             r#"<meta http-equiv="Content-Type" content="text/html; charset=Unicode" />"#,
@@ -31,7 +33,16 @@ pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sy
         )
         .replace(
             "<head>",
-            &format!(r#"<head><script>{}</script>"#, include_str!("polyfill.js")),
+            &format!(
+                r#"<head>
+                <script>
+                    {}
+                    window.System.Machine = {};
+                </script>
+            "#,
+                include_str!("polyfill.js"),
+                machine_stats(&sys)
+            ),
         )
         .replace("<g:background", "<img")
         .replace("</g:background", "</img")
@@ -41,16 +52,18 @@ pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sy
     Ok(html.into())
 }
 
-pub async fn update_machine_stats(web_view: &WebView, sys: &sysinfo::System) {
-    let machine = json!({
+fn machine_stats(sys: &sysinfo::System) -> serde_json::Value {
+    json!({
         "CPUs": sys.cpus().iter()
             .map(|cpu| json!({"usagePercentage": cpu.cpu_usage()}))
             .collect::<Vec<_>>(),
-        "totalMemory": sys.total_memory(),
-        "availableMemory": sys.available_memory(),
-    });
+        "totalMemory": sys.total_memory() / 1_000_000,
+        "availableMemory": sys.available_memory() / 1_000_000,
+    })
+}
 
-    let js = format!("window.System.Machine = {}", machine);
+pub async fn update_machine_stats(web_view: &WebView, sys: &sysinfo::System) {
+    let js = format!("window.System.Machine = {}", machine_stats(sys));
     web_view
         .evaluate_javascript_future(&js, None, None)
         .await
