@@ -1,11 +1,6 @@
 use serde_json::json;
 use std::error::Error;
-use std::fs::File;
-use std::io::{self, Write};
-use std::path::Path;
 use webkit6::{prelude::*, WebView};
-
-const POLYFILL_FILE: &str = "_polyfill.js";
 
 fn decode_ms_string(b: &[u8]) -> Result<String, Box<dyn Error + Send + Sync>> {
     let txt = match &b[0..2] {
@@ -36,10 +31,7 @@ pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sy
         )
         .replace(
             "<head>",
-            &format!(
-                r#"<head><script src="{}" type="text/javascript"></script>"#,
-                POLYFILL_FILE
-            ),
+            &format!(r#"<head><script>{}</script>"#, include_str!("polyfill.js")),
         )
         .replace("<g:background", "<img")
         .replace("</g:background", "</img")
@@ -47,13 +39,6 @@ pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sy
         .replace("</g:image", "</img");
 
     Ok(html.into())
-}
-
-pub fn write_polyfill(dir: impl AsRef<Path>) -> io::Result<()> {
-    let dir = dir.as_ref();
-
-    let mut f = File::create(dir.join(POLYFILL_FILE))?;
-    f.write_all(include_bytes!("polyfill.js"))
 }
 
 pub async fn update_machine_stats(web_view: &WebView, sys: &sysinfo::System) {

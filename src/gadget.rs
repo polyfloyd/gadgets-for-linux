@@ -95,7 +95,7 @@ impl Gadget {
             }
         }
 
-        webhack::write_polyfill(path)
+        Ok(())
     }
 }
 
