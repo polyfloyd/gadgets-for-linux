@@ -51,6 +51,8 @@ fn app_main(
         .decorated(false)
         .resizable(false)
         .can_focus(false)
+        .default_width(1)
+        .default_height(1)
         .child(&web_view)
         .build();
     window.init_layer_shell();
