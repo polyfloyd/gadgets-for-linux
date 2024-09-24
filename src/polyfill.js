@@ -34,6 +34,12 @@ var System = {
 		Settings: new Settings(),
 	},
 	Machine: null, // Set separately.
+	Time: {
+		currentTimeZone: 0,
+		getLocalTime(timezone) {
+			return Date.now() + timezone*60*1000;
+		}
+	},
 };
 
 
