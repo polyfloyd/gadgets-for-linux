@@ -7,6 +7,7 @@ fn decode_ms_string(b: &[u8]) -> Result<String, Box<dyn Error + Send + Sync>> {
         b"\xfe\xff" => {
             let bu16 = b
                 .chunks_exact(2)
+                .skip(1) // BOM
                 .map(|c| u16::from_be_bytes(c.try_into().unwrap()))
                 .collect::<Vec<_>>();
             String::from_utf16(&bu16)?
@@ -14,6 +15,7 @@ fn decode_ms_string(b: &[u8]) -> Result<String, Box<dyn Error + Send + Sync>> {
         b"\xff\xfe" => {
             let bu16 = b
                 .chunks_exact(2)
+                .skip(1) // BOM
                 .map(|c| u16::from_le_bytes(c.try_into().unwrap()))
                 .collect::<Vec<_>>();
             String::from_utf16(&bu16)?
