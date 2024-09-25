@@ -1,10 +1,10 @@
 use crate::webhack;
-use roxmltree as xml;
 use std::error::Error;
 use std::fmt;
 use std::fs::{create_dir_all, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use xmltree::Element;
 use zip::result::ZipError;
 use zip::{read::ZipFile, ZipArchive};
 
@@ -31,19 +31,22 @@ impl Gadget {
             manifest_str
         };
 
-        let manifest = xml::Document::parse(&manifest_str)?;
+        let manifest = Element::parse(manifest_str.as_bytes())?;
 
-        let name = query_xml(manifest.root(), ["gadget", "name"])
-            .and_then(|n| text_content(n))
+        let name = xml_query!(&manifest, gadget > name)
+            .and_then(|n| n.get_text())
+            .map(String::from)
             .ok_or_else(|| "no gadget.name node")?;
-        let author = query_xml(manifest.root(), ["gadget", "author"])
-            .and_then(|n| n.attribute("name"))
-            .map(str::to_string);
-        let copyright =
-            query_xml(manifest.root(), ["gadget", "copyright"]).and_then(|n| text_content(n));
-        let entrypoint = query_xml(manifest.root(), ["gadget", "hosts", "host", "base"])
-            .and_then(|n| n.attribute("src"))
-            .map(str::to_string)
+
+        let author = xml_query!(&manifest, gadget > author)
+            .and_then(|n| n.attributes.get("name"))
+            .cloned();
+        let copyright = xml_query!(&manifest, gadget > copyright)
+            .and_then(|n| n.get_text())
+            .map(String::from);
+        let entrypoint = xml_query!(&manifest, gadget > hosts > host > base[type~="HTML"])
+            .and_then(|n| n.attributes.get("src"))
+            .cloned()
             .ok_or_else(|| "no gadget html entrypoint node")?;
 
         Ok(Self {
@@ -121,29 +124,6 @@ fn try_file_by_name(
         .filter_map(|p| ar.index_for_path(p))
         .next()?;
     ar.by_index(i).ok()
-}
-
-fn query_xml<'a>(
-    mut root: xml::Node<'a, 'a>,
-    path: impl IntoIterator<Item = &'static str>,
-) -> Option<xml::Node<'a, 'a>> {
-    for p in path.into_iter() {
-        root = root.children().filter(|n| n.has_tag_name(p)).next()?;
-    }
-    Some(root)
-}
-
-fn text_content(node: xml::Node) -> Option<String> {
-    let texts: Vec<_> = node
-        .children()
-        .filter(|n| n.is_text())
-        .filter_map(|n| n.text())
-        .collect();
-    if texts.is_empty() {
-        None
-    } else {
-        Some(texts.join(""))
-    }
 }
 
 #[cfg(test)]

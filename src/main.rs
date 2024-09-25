@@ -8,6 +8,8 @@ use std::time::Duration;
 use tempfile::tempdir;
 use webkit6::{prelude::*, Settings, WebContext, WebView};
 
+#[macro_use]
+mod query;
 mod gadget;
 mod webhack;
 
