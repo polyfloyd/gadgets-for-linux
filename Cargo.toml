@@ -9,12 +9,11 @@ clap = { version = "4.5.17", features = ["cargo"], default-features = true }
 gtk4 = { version = "0.9", features = ["v4_12"], default-features = true }
 gtk4-layer-shell = "0.4.0"
 gtk4-sys = "0.9"
+html5ever = "0.27.0"
+markup5ever_rcdom = "0.3.0"
 serde_json = "1.0.128"
 sysinfo = "0.31.4"
 tempfile = "3.12.0"
 webkit6 = "0.4"
-xmltree = "0.11.0"
+xml5ever = "0.18.0"
 zip = "2.2.0"
-
-[patch.crates-io]
-xml-rs = { git = "https://github.com/polyfloyd/xml-rs.git", branch = "permit-no-space-between-attrs" }

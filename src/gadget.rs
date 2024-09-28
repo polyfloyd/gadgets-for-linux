@@ -1,10 +1,12 @@
+use crate::query;
 use crate::webhack;
+use markup5ever_rcdom::RcDom;
 use std::error::Error;
 use std::fmt;
 use std::fs::{create_dir_all, File};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use xmltree::Element;
+use xml5ever::{driver::parse_document as parse_xml, tendril::TendrilSink};
 use zip::result::ZipError;
 use zip::{read::ZipFile, ZipArchive};
 
@@ -31,22 +33,18 @@ impl Gadget {
             manifest_str
         };
 
-        let manifest = Element::parse(manifest_str.as_bytes())?;
+        let parser = parse_xml(RcDom::default(), Default::default());
+        let manifest = parser.one(manifest_str).document;
 
-        let name = xml_query!(&manifest, gadget > name)
-            .and_then(|n| n.get_text())
-            .map(String::from)
+        let name = xml_query!(&manifest, > gadget > name)
+            .and_then(|n| query::get_text_contents(&n))
             .ok_or_else(|| "no gadget.name node")?;
-
-        let author = xml_query!(&manifest, gadget > author)
-            .and_then(|n| n.attributes.get("name"))
-            .cloned();
-        let copyright = xml_query!(&manifest, gadget > copyright)
-            .and_then(|n| n.get_text())
-            .map(String::from);
-        let entrypoint = xml_query!(&manifest, gadget > hosts > host > base[type~="HTML"])
-            .and_then(|n| n.attributes.get("src"))
-            .cloned()
+        let author = xml_query!(&manifest, > gadget > author)
+            .and_then(|n| query::get_attr(&n, "name").map(String::from));
+        let copyright =
+            xml_query!(&manifest, > gadget > copyright).and_then(|n| query::get_text_contents(&n));
+        let entrypoint = xml_query!(&manifest, > gadget > hosts > host > base[type~="HTML"])
+            .and_then(|n| query::get_attr(&n, "src").map(String::from))
             .ok_or_else(|| "no gadget html entrypoint node")?;
 
         Ok(Self {

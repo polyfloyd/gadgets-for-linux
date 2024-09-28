@@ -1,7 +1,9 @@
+use html5ever::tree_builder::TreeSink;
+use html5ever::{driver::parse_document as parse_html, tendril::TendrilSink};
+use markup5ever_rcdom::{Handle, RcDom, SerializableHandle};
 use serde_json::json;
 use std::error::Error;
 use webkit6::{prelude::*, WebView};
-use xmltree::{AttributeMap, Element, EmitterConfig, XMLNode};
 
 fn decode_ms_string(b: &[u8]) -> Result<String, Box<dyn Error + Send + Sync>> {
     let txt = match &b[0..2] {
@@ -37,17 +39,18 @@ pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sy
         .replace("<g:image", "<img")
         .replace("</g:image", "</img");
 
-    let mut dom = Element::parse(html.as_bytes())?;
+    let parser = parse_html(RcDom::default(), Default::default());
+    let dom = parser.one(html);
 
-    let head: &mut Element = xml_query_mut!(&mut dom, html > head).ok_or("missing <head>")?;
+    let head = xml_query!(&dom.document, > html > head).ok_or("missing <head>")?;
     // Drop the Content-Type meta tag. Gadget files are typically UTF16 encoded, which this tag
     // specifies. We re-encode it to UTF8.
-    head.children.retain(|e| match e {
-        XMLNode::Element(e) => !xml_query!(e, meta[http_equiv = "Content-Type"]).is_some(),
-        _ => true,
-    });
+    head.children
+        .borrow_mut()
+        .retain(|e| xml_query!(e, meta[http_equiv = "Content-Type"]).is_none());
+
     // Insert the polyfill.
-    head.children.splice(
+    head.children.borrow_mut().splice(
         0..0,
         [
             script_node(include_str!("polyfill.js")),
@@ -56,31 +59,24 @@ pub fn inject_polyfill(html: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sy
     );
 
     let mut buf = Vec::new();
-    dom.write_with_config(
+    html5ever::serialize::serialize(
         &mut buf,
-        EmitterConfig {
-            // Keep the source readable.
-            perform_indent: true,
-            // Always use verbose </tag> closing elements. Browsers otherwise interpret the
-            // <script src/> tags as non-closing, rendering the rest of the file as JS.
-            // This does create invalid closing tags such as <img/>, but those are ignored.
-            normalize_empty_elements: false,
-            ..EmitterConfig::default()
-        },
+        &SerializableHandle::from(dom.document),
+        Default::default(),
     )?;
-    let html = String::from_utf8(buf)?
-        // These files render best without a doctype.
-        .replace(r#"<?xml version="1.0" encoding="UTF-8"?>"#, "");
-
-    Ok(html.into())
+    Ok(buf)
 }
 
-fn script_node(src: impl Into<String>) -> XMLNode {
-    XMLNode::Element(Element {
-        children: vec![XMLNode::Text(src.into())],
-        attributes: AttributeMap::from([("type".to_string(), "text/javascript".to_string())]),
-        ..Element::new("script")
-    })
+fn script_node(src: impl AsRef<str>) -> Handle {
+    let parser = parse_html(RcDom::default(), Default::default());
+    let mut dom = parser.one(format!(
+        r#"<script type="text/javascript" language="javascript">{}</script>"#,
+        src.as_ref()
+    ));
+    let script =
+        xml_query!(&dom.document, > html > head > script).expect("script not found in decoded DOM");
+    dom.remove_from_parent(&script);
+    script
 }
 
 fn machine_stats(sys: &sysinfo::System) -> serde_json::Value {
